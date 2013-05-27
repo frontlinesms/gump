@@ -1,0 +1,36 @@
+#!/bin/bash
+set -e
+
+testCommand="grails test-app --stacktrace --non-interactive $@"
+testRunLogFile=run_forever.log
+reportOutput=run_forever.report
+junitReportXml=target/test-reports/TESTS-TestSuites.xml
+
+function log {
+	echo "# [run_forever] $@" >> $testRunLogFile
+}
+function removeOldReport {
+	log "removing old report..."
+	set +e
+	mv $junitReportXml $junitReportXml.bak
+	set -e
+}
+removeOldReport
+
+while true; do
+	log "starting test loop..."
+	log "running command: $testCommand"
+	$testCommand | tee $testRunLogFile
+	log 'command completed.  Checking for test report...'
+
+	# check that test report file exists
+	if [ -f $junitReportXml ]; then
+		log "processing junit report xml at $junitReportXml..."
+		${0%/*}/parse_junit_report $junitReportXml > $reportOutput
+		removeOldReport
+	else
+		log "reporting build failure..."
+		tail -n 80 $testRunLogFile > $reportOutput
+	fi
+done
+
