@@ -2,8 +2,9 @@
 set -e
 
 testCommand="grails test-app --stacktrace --non-interactive $@"
-testRunLogFile=run_forever.log
-reportOutput=run_forever.report
+tempDirectory=.gump
+testRunLogFile=$tempDirectory/run_forever.log
+reportOutput=$tempDirectory/run_forever.report
 junitReportXml=target/test-reports/TESTS-TestSuites.xml
 
 function log {
@@ -14,6 +15,13 @@ function removeOldReport {
 	set +e
 	mv $junitReportXml $junitReportXml.bak
 	set -e
+}
+function backup_test_reports {
+	log "backing up test reports..."
+	_testBackupDirectory=$tempDirectory/test-reports
+	rm -rf $_testBackupDirectory
+	mkdir -p $_testBackupDirectory
+	cp -r target/test-reports $_testBackupDirectory
 }
 removeOldReport
 
@@ -27,6 +35,7 @@ while true; do
 	if [ -f $junitReportXml ]; then
 		log "processing junit report xml at $junitReportXml..."
 		${0%/*}/parse_junit_report $junitReportXml > $reportOutput
+		backup_test_reports
 		removeOldReport
 	else
 		log "reporting build failure..."
